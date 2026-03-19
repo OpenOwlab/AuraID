@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/OpenOwlab/AuraID.git
+    about: Check our documentation for guides and API reference
+  - name: Discussions
+    url: https://github.com/OpenOwlab/AuraID/discussions
+    about: Ask questions and discuss ideas with the community

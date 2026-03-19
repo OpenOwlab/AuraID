@@ -1,0 +1,188 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Loader2, Save, Check, Square, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
+import { NoteDiscussionDialog } from "./note-discussion-dialog";
+
+/** Sanitize a string for use as a filename. */
+function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[^\w\u4e00-\u9fff\s-]/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 60);
+}
+
+interface PaperSummarySectionProps {
+  summary: string;
+  isSummarizing: boolean;
+  workspaceId: string;
+  notesDir?: string;
+  onSaved?: () => void;
+  onStop?: () => void;
+}
+
+export function PaperSummarySection({
+  summary,
+  isSummarizing,
+  workspaceId,
+  notesDir,
+  onSaved,
+  onStop,
+}: PaperSummarySectionProps) {
+  const t = useTranslations("paperStudy");
+  const tCommon = useTranslations("common");
+  const [saving, setSaving] = useState(false);
+  const [savedFilePath, setSavedFilePath] = useState<string | null>(null);
+  const [discussOpen, setDiscussOpen] = useState(false);
+
+  useEffect(() => {
+    // summary 内容变化时，重置保存状态，避免按钮“误以为已保存”。
+    setSavedFilePath(null);
+    setDiscussOpen(false);
+  }, [summary]);
+
+  if (!isSummarizing && !summary) return null;
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const noteTitle = `${t("summaryNoteTitle")} - ${dateStr}`;
+
+  const handleSaveBoth = async () => {
+    if (!notesDir) {
+      toast.error(t("noNotesDir"));
+      return;
+    }
+
+    setSaving(true);
+    let createdNoteId: string | null = null;
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          title: noteTitle,
+          content: summary,
+          type: "summary",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Save failed (${res.status})`);
+      }
+
+      const createdNote = await res.json().catch(() => null);
+      createdNoteId = createdNote?.id ?? null;
+
+      // 同步写入 notesDir 下的 .md 文件，保证“关联笔记/搜索”可用。
+      const fileName = `${sanitizeFileName(t("summaryNoteTitle"))}-${dateStr}.md`;
+      const filePath = `${notesDir}/${fileName}`;
+      const fileRes = await fetch("/api/files/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: filePath,
+          content: `# ${noteTitle}\n\n${summary}`,
+        }),
+      });
+
+      if (!fileRes.ok) throw new Error("Write failed");
+
+      setSavedFilePath(filePath);
+      onSaved?.();
+    } catch (err) {
+      // 只有在“先写入数据库、后写文件失败”的情况下才回滚数据库。
+      if (createdNoteId) {
+        await fetch(`/api/notes/${createdNoteId}`, { method: "DELETE" }).catch(
+          () => {}
+        );
+      }
+      toast.error(err instanceof Error ? err.message : tCommon("error"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border-t p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold flex items-center gap-1.5">
+          {isSummarizing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {t("summaryTitle")}
+        </h3>
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {isSummarizing && onStop && (
+            <Button
+              variant="destructive"
+              size="xs"
+              onClick={onStop}
+              className="gap-1 text-xs"
+            >
+              <Square className="h-3 w-3" />
+              {t("stopSummarize")}
+            </Button>
+          )}
+          {summary && !isSummarizing && (
+            <>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={handleSaveBoth}
+                disabled={saving || !!savedFilePath || !notesDir}
+                className="gap-1 text-xs"
+              >
+                {savedFilePath ? (
+                  <Check className="h-3 w-3" />
+                ) : saving ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Save className="h-3 w-3" />
+                )}
+                {savedFilePath ? t("savedToNotes") : t("saveToNotes")}
+              </Button>
+              {savedFilePath && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setDiscussOpen(true)}
+                  className="gap-1 text-xs"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  {t("expandDiscuss")}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {isSummarizing ? (
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-[90%]" />
+          <Skeleton className="h-4 w-[80%]" />
+          <Skeleton className="h-4 w-[85%]" />
+          <Skeleton className="h-4 w-[70%]" />
+        </div>
+      ) : (
+        <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+          <ReactMarkdown>{summary}</ReactMarkdown>
+        </div>
+      )}
+
+      {/* Discussion dialog */}
+      <NoteDiscussionDialog
+        open={discussOpen}
+        onClose={() => setDiscussOpen(false)}
+        noteTitle={noteTitle}
+        noteContent={summary}
+        noteFilePath={savedFilePath || undefined}
+      />
+    </div>
+  );
+}
