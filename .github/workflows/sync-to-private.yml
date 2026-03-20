@@ -1,11 +1,11 @@
 name: Sync to private repo
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   sync:
+    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
