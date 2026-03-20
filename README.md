@@ -371,10 +371,10 @@ The `/setup` command interactively guides you through: dependency installation �
 - 仅挂载必要目录，避免将宿主机敏感路径映射进容器
 - 按需开放端口与环境变量，不授予额外 Linux capabilities
 
-可使用仓库内的 `build-loopclaw-image.sh` 和 `Dockerfile` 构建镜像：
+可使用仓库内的 `build-auraid-image.sh` 和 `Dockerfile` 构建镜像：
 
 ```bash
-./build-loopclaw-image.sh
+./build-auraid-image.sh
 ```
 
 构建完成后，建议以受限权限启动容器并逐步验证功能，再用于生产环境。
@@ -613,7 +613,7 @@ rjob 后端支持指定容器镜像、GPU 数量、内存、挂载路径、charg
 | 变量 | 必填 | 说明 | 默认值 |
 |------|:----:|------|--------|
 | `WORKSPACE_ROOTS` | ✅ | 工作空间根目录（逗号分隔绝对路径，目录必须已存在） | — |
-| `DATABASE_URL` | | SQLite 数据库路径。网络文件系统（NFS/CIFS）上建议指向本地路径 | `./data/innoclaw.db` |
+| `DATABASE_URL` | | SQLite 数据库路径。网络文件系统（NFS/CIFS）上建议指向本地路径 | `./data/auraid.db` |
 | `NEXT_BUILD_DIR` | | Next.js 构建目录。网络文件系统上建议指向本地路径 | `.next` |
 
 ### AI 模型
@@ -829,10 +829,10 @@ Claude Code CLI 目前有地区可用性限制，部分地区即使通过 VPN �
 使用镜像源：`npm install --registry=https://registry.npmmirror.com`
 
 **`npx drizzle-kit migrate` 报错？**
-确认 `./data/` 目录已存在（`mkdir -p ./data`）。数据库损坏可删除后重建：`rm -f ./data/innoclaw.db && npx drizzle-kit migrate`。
+确认 `./data/` 目录已存在（`mkdir -p ./data`）。数据库损坏可删除后重建：`rm -f ./data/auraid.db && npx drizzle-kit migrate`。
 
 **`SQLITE_IOERR_SHMMAP` / `disk I/O error`？**
-项目位于网络文件系统（NFS/CIFS）时常见。在 `.env.local` 中设置 `DATABASE_URL=/tmp/innoclaw/innoclaw.db`，然后 `mkdir -p /tmp/innoclaw && npx drizzle-kit migrate`。
+项目位于网络文件系统（NFS/CIFS）时常见。在 `.env.local` 中设置 `DATABASE_URL=/tmp/auraid/auraid.db`，然后 `mkdir -p /tmp/auraid && npx drizzle-kit migrate`。
 
 **`Persisting failed` / `No such device`？**
 Turbopack 在网络文件系统上的缓存警告，不影响功能。可设置 `NEXT_BUILD_DIR=/tmp/innoclaw-next` 消除。
@@ -861,7 +861,7 @@ Turbopack 在网络文件系统上的缓存警告，不影响功能。可设置 
 确保已安装 `kubectl`（`kubectl version --client`），且 `KUBECONFIG_PATH` 配置正确。
 
 **如何重置数据库？**
-`rm -f ./data/innoclaw.db && npx drizzle-kit migrate`
+`rm -f ./data/auraid.db && npx drizzle-kit migrate`
 
 ---
 
