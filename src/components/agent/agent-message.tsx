@@ -70,7 +70,16 @@ function ContextSummaryBlock({ text }: { text: string }) {
   );
 }
 
-export function AgentMessage({ message }: { message: UIMessage }) {
+interface AgentMessageProps {
+  message: UIMessage;
+  /** While the parent is streaming, skip Markdown for this assistant message's text parts (avoids re-parsing on every token). */
+  usePlainTextForStream?: boolean;
+}
+
+export function AgentMessage({
+  message,
+  usePlainTextForStream = false,
+}: AgentMessageProps) {
   const isUser = message.role === "user";
 
   if (isUser) {
@@ -147,6 +156,16 @@ export function AgentMessage({ message }: { message: UIMessage }) {
         if (part.type === "text") {
           const text = (part as { type: "text"; text: string }).text;
           if (!text.trim()) return null;
+          if (usePlainTextForStream) {
+            return (
+              <div
+                key={i}
+                className="text-sm max-w-none text-agent-foreground whitespace-pre-wrap leading-relaxed break-words"
+              >
+                {text}
+              </div>
+            );
+          }
           return (
             <div
               key={i}

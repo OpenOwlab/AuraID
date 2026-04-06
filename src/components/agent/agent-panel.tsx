@@ -1171,18 +1171,34 @@ export function AgentPanel({
               </p>
             </div>
           ) : (
-            messages.map((message) => {
-              // Filter out auto-continue messages (user messages with only "Continue" / "继续")
-              if (message.role === "user") {
-                const text = message.parts
-                  ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
-                  .map((p) => p.text)
-                  .join("")
-                  .trim();
-                if (text === "Continue" || text === "继续") return null;
-              }
-              return <AgentMessage key={message.id} message={message} />;
-            })
+            (() => {
+              const lastMsg = messages[messages.length - 1];
+              const usePlainTextForStream =
+                (status === "submitted" || status === "streaming") &&
+                lastMsg?.role === "assistant";
+              return messages.map((message) => {
+                // Filter out auto-continue messages (user messages with only "Continue" / "继续")
+                if (message.role === "user") {
+                  const text = message.parts
+                    ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+                    .map((p) => p.text)
+                    .join("")
+                    .trim();
+                  if (text === "Continue" || text === "继续") return null;
+                }
+                const plainStream =
+                  usePlainTextForStream &&
+                  message.role === "assistant" &&
+                  message.id === lastMsg.id;
+                return (
+                  <AgentMessage
+                    key={message.id}
+                    message={message}
+                    usePlainTextForStream={plainStream}
+                  />
+                );
+              });
+            })()
           )}
 
           {/* Loading indicator with enhanced effects */}
