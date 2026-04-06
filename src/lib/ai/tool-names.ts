@@ -5,6 +5,7 @@
 export const ALL_TOOLS = [
   "bash",
   "readFile",
+  "readImage",
   "writeFile",
   "listDirectory",
   "grep",

@@ -61,10 +61,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { providerId, model } = llmProvider && llmModel
+    const { providerId, modelId, model } = llmProvider && llmModel
       ? getModelFromOverride(llmProvider, llmModel)
       : await getConfiguredModelWithProvider();
-    console.log(`[agent] provider=${providerId} model=${typeof model === 'string' ? model : model.modelId} override=${!!(llmProvider && llmModel)}`);
+    const llmContext = { providerId, modelId };
+    console.log(`[agent] provider=${providerId} model=${modelId} override=${!!(llmProvider && llmModel)}`);
     const useTools = providerSupportsTools(providerId);
     let systemPrompt: string;
     let tools;
@@ -94,15 +95,36 @@ export async function POST(req: NextRequest) {
       }
 
       systemPrompt = buildSkillSystemPrompt(skill, cwd, paramValues || {});
-      tools = createAgentTools(cwd, skill.allowedTools, workspaceId, sessionCreatedAt);
+      tools = createAgentTools(
+        cwd,
+        skill.allowedTools,
+        workspaceId,
+        sessionCreatedAt,
+        undefined,
+        llmContext
+      );
     } else if (mode === "plan") {
       // Plan mode: read-only tools, focus on analysis and planning
       systemPrompt = buildPlanSystemPrompt(cwd);
-      tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId, sessionCreatedAt);
+      tools = createAgentTools(
+        cwd,
+        ["readFile", "listDirectory", "grep", "readImage"],
+        workspaceId,
+        sessionCreatedAt,
+        undefined,
+        llmContext
+      );
     } else if (mode === "ask") {
       // Ask mode: read-only tools, can read files but never write or execute
       systemPrompt = buildAskSystemPrompt(cwd);
-      tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId, sessionCreatedAt);
+      tools = createAgentTools(
+        cwd,
+        ["readFile", "listDirectory", "grep", "readImage"],
+        workspaceId,
+        sessionCreatedAt,
+        undefined,
+        llmContext
+      );
     } else {
       // Agent modes ("agent" (default), "long-agent", or legacy "agent"): load skill catalog
       let skillCatalog: { slug: string; name: string; description: string | null }[] | undefined;
@@ -139,7 +161,14 @@ export async function POST(req: NextRequest) {
         // Agent (default): standard agent mode
         systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       }
-      tools = createAgentTools(cwd, undefined, workspaceId, sessionCreatedAt, mode === "long-agent");
+      tools = createAgentTools(
+        cwd,
+        undefined,
+        workspaceId,
+        sessionCreatedAt,
+        mode === "long-agent",
+        llmContext
+      );
     }
 
     // Sanitize UI messages: remove tool invocation parts with missing input

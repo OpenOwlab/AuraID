@@ -11,13 +11,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const fakeChatModel = { modelId: "test" };
 
 // Track calls to createOpenAI so we can assert baseURL / apiKey
-const createOpenAISpy = vi.fn(() => ({
+const createOpenAISpy = vi.fn((_opts?: unknown) => ({
   chat: vi.fn(() => fakeChatModel),
 }));
 
 vi.mock("@ai-sdk/openai", () => ({
   openai: { chat: vi.fn(() => fakeChatModel) },
-  createOpenAI: (...args: unknown[]) => createOpenAISpy(...args),
+  createOpenAI: (opts: unknown) => createOpenAISpy(opts),
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({
@@ -52,7 +52,7 @@ describe("getPerModelProvider – base URL resolution", () => {
     // Re-apply mocks after resetModules
     vi.doMock("@ai-sdk/openai", () => ({
       openai: { chat: vi.fn(() => fakeChatModel) },
-      createOpenAI: (...args: unknown[]) => createOpenAISpy(...args),
+      createOpenAI: (opts: unknown) => createOpenAISpy(opts),
     }));
     vi.doMock("@ai-sdk/anthropic", () => ({
       createAnthropic: vi.fn(() => vi.fn(() => fakeChatModel)),

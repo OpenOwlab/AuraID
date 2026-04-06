@@ -12,7 +12,7 @@ import {
   stepCountIs,
   type UIMessage,
 } from "ai";
-import { getConfiguredModel, isAIAvailable } from "@/lib/ai/provider";
+import { getConfiguredModelWithProvider, isAIAvailable } from "@/lib/ai/provider";
 import { createAgentTools } from "@/lib/ai/agent-tools";
 import {
   buildAgentSystemPrompt,
@@ -72,11 +72,29 @@ function getSystemPrompt(mode: AgentMode, cwd: string): string {
   }
 }
 
-function getTools(mode: AgentMode, cwd: string) {
+function getTools(
+  mode: AgentMode,
+  cwd: string,
+  llm: { providerId: string; modelId: string }
+) {
   if (mode === "plan" || mode === "ask") {
-    return createAgentTools(cwd, ["readFile", "listDirectory", "grep"]);
+    return createAgentTools(
+      cwd,
+      ["readFile", "listDirectory", "grep", "readImage"],
+      null,
+      null,
+      undefined,
+      llm
+    );
   }
-  return createAgentTools(cwd);
+  return createAgentTools(
+    cwd,
+    undefined,
+    null,
+    null,
+    undefined,
+    llm
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -111,9 +129,9 @@ export async function processAgentMessage(
     return;
   }
 
-  const model = await getConfiguredModel();
+  const { model, providerId, modelId } = await getConfiguredModelWithProvider();
   const systemPrompt = getSystemPrompt(mode, workspacePath);
-  const tools = getTools(mode, workspacePath);
+  const tools = getTools(mode, workspacePath, { providerId, modelId });
 
   // Build messages with conversation history
   const userMsg: UIMessage = {

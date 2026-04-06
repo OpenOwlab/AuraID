@@ -8,10 +8,11 @@ import { createSearchTools } from "./search-tools";
 import { createSkillTools } from "./skill-tools";
 import { createMcpTools } from "./mcp-tools";
 import { createResearchExecTools } from "./research-exec-tools";
+import { createImageTools } from "./image-tools";
 import { formatTimestampForDir } from "./research-history";
-import type { ToolContext } from "./types";
+import type { AgentLlmContext, ToolContext } from "./types";
 
-export type { ToolContext } from "./types";
+export type { AgentLlmContext, ToolContext } from "./types";
 
 export function createAgentTools(
   workspaceCwd: string,
@@ -19,6 +20,7 @@ export function createAgentTools(
   workspaceId?: string | null,
   sessionCreatedAt?: string | null,
   isLongAgent?: boolean,
+  llmContext?: AgentLlmContext | null,
 ) {
   const validatedCwd = validatePath(workspaceCwd);
 
@@ -45,6 +47,11 @@ export function createAgentTools(
     ? path.join(validatedCwd, "history", formatTimestampForDir(sessionCreatedAt))
     : undefined;
 
+  const llm: AgentLlmContext = llmContext ?? {
+    providerId: "",
+    modelId: "",
+  };
+
   const ctx: ToolContext = {
     validatedCwd,
     resolvePath,
@@ -53,11 +60,14 @@ export function createAgentTools(
     workspaceId,
     researchHistoryDir,
     isLongAgent,
+    readImageBinaryByToolCallId: new Map(),
+    readImageSentFingerprints: new Set(),
   };
 
   const allTools = {
     ...createShellTools(ctx),
     ...createFileTools(ctx),
+    ...createImageTools(ctx, llm),
     ...createK8sTools(ctx),
     ...createSearchTools(),
     ...createSkillTools(workspaceId),

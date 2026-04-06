@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   Terminal,
   FileText,
+  Image as ImageIcon,
   Pencil,
   FolderOpen,
   Search,
@@ -41,6 +42,7 @@ export function getToolNameFromPart(part: ToolInvocationPart): string {
 const TOOL_ICONS: Record<string, React.ReactNode> = {
   bash: <Terminal className="h-3.5 w-3.5" />,
   readFile: <FileText className="h-3.5 w-3.5" />,
+  readImage: <ImageIcon className="h-3.5 w-3.5" />,
   writeFile: <Pencil className="h-3.5 w-3.5" />,
   listDirectory: <FolderOpen className="h-3.5 w-3.5" />,
   grep: <Search className="h-3.5 w-3.5" />,
@@ -55,6 +57,8 @@ function getToolSummary(toolName: string, args?: Record<string, unknown>): strin
       return String(args.command || "");
     case "readFile":
       return String(args.filePath || "");
+    case "readImage":
+      return String(args.imagePath || "");
     case "writeFile":
       return String(args.filePath || "");
     case "listDirectory":
@@ -103,6 +107,46 @@ function renderToolResult(
           {String(result.content || "")}
         </pre>
       );
+    case "readImage": {
+      if (result.ok === false) {
+        return (
+          <div className="text-agent-error whitespace-pre-wrap">
+            {String(result.error || "readImage failed")}
+          </div>
+        );
+      }
+      const srcPath = String(result.path || "");
+      const thumbUrl = srcPath
+        ? `/api/files/raw?path=${encodeURIComponent(srcPath)}`
+        : "";
+      return (
+        <div className="space-y-2">
+          {result.duplicateSkipped === true && (
+            <div className="text-agent-muted">
+              Same file was already loaded for the model in this request; no duplicate image data was sent.
+            </div>
+          )}
+          <div className="text-agent-foreground text-[11px] leading-relaxed">
+            {String(result.mediaType || "")}{" "}
+            {Number(result.width) > 0 && Number(result.height) > 0
+              ? `${result.width}×${result.height}`
+              : ""}
+            {result.downscaled === true ? " · downscaled" : ""}
+            {result.byteSize != null
+              ? ` · ${Number(result.byteSize)} bytes`
+              : ""}
+          </div>
+          {thumbUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbUrl}
+              alt=""
+              className="max-h-48 max-w-full rounded border border-agent-border object-contain bg-agent-card-hover"
+            />
+          ) : null}
+        </div>
+      );
+    }
     case "writeFile":
       return (
         <div className="text-agent-success">
@@ -299,6 +343,11 @@ export function ToolCallBlock({ part }: { part: ToolInvocationPart }) {
           {toolName === "readFile" && args && (
             <div className="text-agent-muted">
               Reading: {String(args.filePath)}
+            </div>
+          )}
+          {toolName === "readImage" && args && (
+            <div className="text-agent-muted">
+              Image: {String(args.imagePath)}
             </div>
           )}
           {toolName === "writeFile" && args && (
